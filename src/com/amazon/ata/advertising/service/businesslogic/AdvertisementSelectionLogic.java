@@ -66,10 +66,7 @@ public class AdvertisementSelectionLogic {
         if (StringUtils.isEmpty(marketplaceId)) {
             LOG.warn("MarketplaceId cannot be null or empty. Returning empty ad.");
         } else {
-            final List<AdvertisementContent> contents = contentDao.get(marketplaceId);
-            contents.stream()
-                    // targetingGroupDao.get(ad.getContentId()) -> List<TargetingGroup>
-                    // filter : List<TargetingGroup> forEach targetingEvaluator.evaluate(targetingGroup) == TargetingPredicateResult.TRUE
+            final List<AdvertisementContent> contents = contentDao.get(marketplaceId).stream()
                     .filter(content -> {
                         List<TargetingGroup> targetingGroups = targetingGroupDao.get(content.getContentId());
                         return targetingGroups.stream()

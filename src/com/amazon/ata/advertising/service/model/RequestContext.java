@@ -20,7 +20,7 @@ public class RequestContext {
      * @param marketplaceId The marketplace to view the advertisement in.
      */
     public RequestContext(String customerId, String marketplaceId) {
-        if (StringUtils.isBlank(customerId)) {
+        if (StringUtils.isBlank(customerId) || customerId.equals("db")) {
             this.recognizedCustomer = false;
             this.customerId = null;
         } else {

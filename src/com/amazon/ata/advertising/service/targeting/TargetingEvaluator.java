@@ -32,16 +32,10 @@ public class TargetingEvaluator {
      */
     public TargetingPredicateResult evaluate(TargetingGroup targetingGroup) {
         List<TargetingPredicate> targetingPredicates = targetingGroup.getTargetingPredicates();
-        boolean allTruePredicates = targetingPredicates.stream()
+
+        boolean allTruePredicates = !requestContext.isRecognizedCustomer() ? false : targetingPredicates.stream()
                 .map(predicate -> predicate.evaluate(requestContext))
-                .noneMatch(result -> !result.isTrue());
-//        for (TargetingPredicate predicate : targetingPredicates) {
-//            TargetingPredicateResult predicateResult = predicate.evaluate(requestContext);
-//            if (!predicateResult.isTrue()) {
-//                allTruePredicates = false;
-//                break;
-//            }
-//        }
+                .allMatch(TargetingPredicateResult::isTrue);
 
         return allTruePredicates ? TargetingPredicateResult.TRUE :
                                    TargetingPredicateResult.FALSE;
