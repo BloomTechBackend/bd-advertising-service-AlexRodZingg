@@ -5,14 +5,19 @@ import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicate
 import com.amazon.ata.advertising.service.targeting.predicate.TargetingPredicateResult;
 
 import javax.inject.Inject;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Evaluates TargetingPredicates for a given RequestContext.
  */
 public class TargetingEvaluator {
     public static final boolean IMPLEMENTED_STREAMS = true;
-    public static final boolean IMPLEMENTED_CONCURRENCY = false;
+    public static final boolean IMPLEMENTED_CONCURRENCY = true;
     private final RequestContext requestContext;
 
     /**
@@ -31,13 +36,42 @@ public class TargetingEvaluator {
      * @return TRUE if all of the TargetingPredicates evaluate to TRUE against the RequestContext, FALSE otherwise.
      */
     public TargetingPredicateResult evaluate(TargetingGroup targetingGroup) {
+
+        if (!requestContext.isRecognizedCustomer()) {
+            return TargetingPredicateResult.FALSE;
+        }
+
         List<TargetingPredicate> targetingPredicates = targetingGroup.getTargetingPredicates();
 
-        boolean allTruePredicates = !requestContext.isRecognizedCustomer() ? false : targetingPredicates.stream()
-                .map(predicate -> predicate.evaluate(requestContext))
-                .allMatch(TargetingPredicateResult::isTrue);
+        ExecutorService executorService = Executors.newCachedThreadPool();
+        List<Future<TargetingPredicateResult>> futureResults = new ArrayList<>();
+        //List<TargetingPredicateResult> targetingPredicateResults = new ArrayList<>();
 
-        return allTruePredicates ? TargetingPredicateResult.TRUE :
-                                   TargetingPredicateResult.FALSE;
+        for (TargetingPredicate predicate : targetingPredicates) {
+            futureResults.add(executorService.submit(() -> predicate.evaluate(requestContext)));
+        }
+        executorService.shutdown();
+
+        for (Future<TargetingPredicateResult> resultFuture : futureResults) {
+            try {
+                if (!resultFuture.get().isTrue()) {
+                    return TargetingPredicateResult.FALSE;
+                }
+                //targetingPredicateResults.add(resultFuture.get());
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        return TargetingPredicateResult.TRUE;
+//        boolean allTruePredicates = targetingPredicateResults.stream()
+//                .allMatch(TargetingPredicateResult::isTrue);
+
+//        boolean allTruePredicates = !requestContext.isRecognizedCustomer() ? false : targetingPredicates.stream()
+//                .map(predicate -> predicate.evaluate(requestContext))
+//                .allMatch(TargetingPredicateResult::isTrue);
+
+//        return allTruePredicates ? TargetingPredicateResult.TRUE :
+//                                   TargetingPredicateResult.FALSE;
     }
 }
