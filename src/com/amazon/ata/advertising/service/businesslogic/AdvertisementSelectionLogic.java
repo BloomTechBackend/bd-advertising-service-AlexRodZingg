@@ -13,6 +13,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.checkerframework.checker.nullness.Opt;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -66,16 +67,40 @@ public class AdvertisementSelectionLogic {
         if (StringUtils.isEmpty(marketplaceId)) {
             LOG.warn("MarketplaceId cannot be null or empty. Returning empty ad.");
         } else {
-            final List<AdvertisementContent> contents = contentDao.get(marketplaceId).stream()
-                    .filter(content -> {
-                        List<TargetingGroup> targetingGroups = targetingGroupDao.get(content.getContentId());
-                        return targetingGroups.stream()
-                                .anyMatch(targetingGroup -> targetingEvaluator.evaluate(targetingGroup) == TargetingPredicateResult.TRUE);
-                    })
-                    .collect(Collectors.toList());
 
-            if (CollectionUtils.isNotEmpty(contents)) {
-                AdvertisementContent randomAdvertisementContent = contents.get(random.nextInt(contents.size()));
+            final SortedMap<Double, AdvertisementContent> clickRateTreeMap = new TreeMap<>(Comparator.reverseOrder());
+
+            if (customerId == null || customerId.equals("")) {
+                contentDao.get(marketplaceId).stream()
+                        .forEach(content -> {
+                            double maxRate = targetingGroupDao.get(content.getContentId()).stream()
+                                    .mapToDouble(TargetingGroup::getClickThroughRate)
+                                    .max()
+                                    .orElse(0);
+
+                            if (maxRate > 0) {
+                                clickRateTreeMap.put(maxRate, content);
+                            }
+                        });
+            } else {
+                contentDao.get(marketplaceId).stream()
+                        .forEach(content -> {
+                            List<TargetingGroup> targetingGroups = targetingGroupDao.get(content.getContentId());
+                            boolean isValidContent = targetingGroups.stream()
+                                    .anyMatch(targetingGroup -> targetingEvaluator.evaluate(targetingGroup) == TargetingPredicateResult.TRUE);
+
+                            if (isValidContent) {
+                                Optional<Double> maxClickThroughRate = targetingGroups.stream()
+                                        .map(TargetingGroup::getClickThroughRate)
+                                        .max(Double::compare);
+
+                                maxClickThroughRate.ifPresent(clickRate -> clickRateTreeMap.put(clickRate, content));
+                            }
+                        });
+            }
+
+            if (!clickRateTreeMap.isEmpty()) {
+                AdvertisementContent randomAdvertisementContent = clickRateTreeMap.get(clickRateTreeMap.firstKey());
                 generatedAdvertisement = new GeneratedAdvertisement(randomAdvertisementContent);
             }
         }

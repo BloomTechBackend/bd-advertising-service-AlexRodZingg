@@ -7,7 +7,7 @@ import java.util.Objects;
 /**
  * Information derived from a service request object.
  */
-public class RequestContext {
+public final class RequestContext {
     private final boolean recognizedCustomer;
     private final String customerId;
     private final String marketplaceId;
