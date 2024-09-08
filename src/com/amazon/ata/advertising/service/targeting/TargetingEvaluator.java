@@ -45,7 +45,6 @@ public class TargetingEvaluator {
 
         ExecutorService executorService = Executors.newCachedThreadPool();
         List<Future<TargetingPredicateResult>> futureResults = new ArrayList<>();
-        //List<TargetingPredicateResult> targetingPredicateResults = new ArrayList<>();
 
         for (TargetingPredicate predicate : targetingPredicates) {
             futureResults.add(executorService.submit(() -> predicate.evaluate(requestContext)));
@@ -57,21 +56,11 @@ public class TargetingEvaluator {
                 if (!resultFuture.get().isTrue()) {
                     return TargetingPredicateResult.FALSE;
                 }
-                //targetingPredicateResults.add(resultFuture.get());
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
 
         return TargetingPredicateResult.TRUE;
-//        boolean allTruePredicates = targetingPredicateResults.stream()
-//                .allMatch(TargetingPredicateResult::isTrue);
-
-//        boolean allTruePredicates = !requestContext.isRecognizedCustomer() ? false : targetingPredicates.stream()
-//                .map(predicate -> predicate.evaluate(requestContext))
-//                .allMatch(TargetingPredicateResult::isTrue);
-
-//        return allTruePredicates ? TargetingPredicateResult.TRUE :
-//                                   TargetingPredicateResult.FALSE;
     }
 }
